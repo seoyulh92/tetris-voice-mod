@@ -6,7 +6,9 @@ voice recognition
 
 ##작동 방법 : 
 
-1. install.bat 을 먼저 우클릭 후 관리자 권한으로 실행
+1. install.bat 을 먼저 우클릭 후 관리자 권한으로 실행 이후 설치가 끝나면
+
+2. starter.bat 을 실행
 
 
 ##방향 - 
