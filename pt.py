@@ -53,58 +53,39 @@ def recognize_speech(prompt="명령 외쳐:"):
         print(prompt)
         recognizer.adjust_for_ambient_noise(source, duration=1)
         try:
-            audio = recognizer.listen(source, timeout=2)  # 대기 시간 2초로 설정
+            audio = recognizer.listen(source, timeout=2)  # 대기 시간 2초
             command = recognizer.recognize_google(audio, language='ko-KR')
             command = command.replace(" ", "")
             print(f"인식된 명령: {command}")
             return command
-
-        except sr.WaitTimeoutError:
-            print("대기 시간 초과")
-            return None
-
-        except sr.UnknownValueError:
-            print("음성 인식 실패")
-            return None
-
-        except sr.RequestError:
-            print("음성 서비스 접근 불가")
+        except (sr.UnknownValueError, sr.RequestError, sr.WaitTimeoutError):
             return None
 
 def find_closest_command(input_command):
-    closest_command = min(commands, key=lambda cmd: Levenshtein.distance(input_command, cmd))
-    print(f"가장 유사한 명령어: {closest_command}")
-    return closest_command
+    return min(commands, key=lambda cmd: Levenshtein.distance(input_command, cmd))
 
 def execute_command(command, count=1):
-    try:
-        if command in key_mapping:
-            key = key_mapping[command]
-            if isinstance(key, Key):
-                for _ in range(count):
-                    keyboard.press(key)
-                    keyboard.release(key)
-            else:
+    if command in key_mapping:
+        key = key_mapping[command]
+        if isinstance(key, Key):
+            for _ in range(count):
                 keyboard.press(key)
                 keyboard.release(key)
         else:
-            print(f"알 수 없는 명령어: {command}")
-
-    except Exception as e:
-        print(f"명령어 실행 중 오류 발생: {e}")
+            keyboard.press(key)
+            keyboard.release(key)
+    else:
+        print(f"알 수 없는 명령어: {command}")
 
 def recognize_number(limited=False):
     while True:
         command = recognize_speech("숫자 말해라:")
         if command:
-            closest_number = min(
-                (limited_number_words if limited else number_words).keys(),
-                key=lambda word: Levenshtein.distance(command, word)
-            )
-            if closest_number in (limited_number_words if limited else number_words):
-                return (limited_number_words if limited else number_words)[closest_number]
-            else:
-                print("숫자 인식 실패")
+            number_dict = limited_number_words if limited else number_words
+            closest_number = min(number_dict.keys(), key=lambda word: Levenshtein.distance(command, word))
+            if closest_number in number_dict:
+                return number_dict[closest_number]
+        print("숫자 인식 실패")
 
 class VoiceControlApp:
     def __init__(self, root):
@@ -118,11 +99,9 @@ class VoiceControlApp:
         self.setup_ui()
     
     def setup_ui(self):
-        # 메인 프레임
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # 명령어 및 숫자 디스플레이
         self.command_label = tk.Label(self.main_frame, text="인식된 명령어:")
         self.command_label.pack(pady=(0, 5))
         
@@ -135,31 +114,24 @@ class VoiceControlApp:
         self.number_display = tk.Label(self.main_frame, text="")
         self.number_display.pack(pady=(0, 15))
 
-        # 버튼 프레임
         self.button_frame = tk.Frame(self.main_frame)
         self.button_frame.pack(pady=(10, 0))
 
-        # 음성 인식 시작 버튼
         self.recognize_button = ttk.Button(self.button_frame, text="음성 인식 시작", command=self.start_recognition)
         self.recognize_button.pack(side=tk.LEFT, padx=10, pady=5)
 
-        # 중지 버튼
         self.stop_button = ttk.Button(self.button_frame, text="중지", command=self.stop_recognition, state=tk.DISABLED)
         self.stop_button.pack(side=tk.LEFT, padx=10, pady=5)
 
-        # 키 매핑 버튼
         self.key_mapping_button = ttk.Button(self.button_frame, text="키 매핑", command=self.open_key_mapping_window)
         self.key_mapping_button.pack(side=tk.LEFT, padx=10, pady=5)
 
-        # 타이머
         self.timer_label = tk.Label(self.main_frame, text="인식 시간: 00:00")
         self.timer_label.pack(pady=(10, 0))
 
-        # 사이드바
         self.sidebar = tk.Frame(self.root, width=200, padx=10, pady=10)
         self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
 
-        # 유사도 임계값 설정
         self.similarity_label = tk.Label(self.sidebar, text="유사도 임계값:")
         self.similarity_label.pack(pady=(0, 5))
 
@@ -167,7 +139,6 @@ class VoiceControlApp:
         self.similarity_scale.set(50)
         self.similarity_scale.pack(pady=(0, 10))
 
-        # 명령어 히스토리
         self.history_label = tk.Label(self.sidebar, text="실행된 명령어:")
         self.history_label.pack(pady=(0, 5))
 
@@ -252,7 +223,6 @@ class KeyMappingWindow(tk.Toplevel):
         self.geometry("300x400")
         self.key_mapping = key_mapping
 
-        # 키 매핑 설정 프레임
         self.mapping_frame = tk.Frame(self, padx=10, pady=10)
         self.mapping_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -266,11 +236,9 @@ class KeyMappingWindow(tk.Toplevel):
             entry.grid(row=i, column=1, padx=5, pady=5, sticky='e')
             self.entries[command] = entry
 
-        # 리셋 버튼
         self.reset_button = ttk.Button(self.mapping_frame, text="초기화", command=self.reset_key_mapping)
         self.reset_button.grid(row=len(commands), column=0, columnspan=2, pady=10)
 
-        # 저장 버튼
         self.save_button = ttk.Button(self.mapping_frame, text="저장", command=self.save_key_mapping)
         self.save_button.grid(row=len(commands) + 1, column=0, columnspan=2, pady=10)
 
@@ -303,4 +271,5 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = VoiceControlApp(root)
     root.mainloop()
+
 
