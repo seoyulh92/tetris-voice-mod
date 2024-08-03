@@ -52,21 +52,24 @@ def recognize_speech(prompt="명령 외쳐:"):
     with sr.Microphone() as source:
         print(prompt)
         recognizer.adjust_for_ambient_noise(source, duration=1)
-        audio = recognizer.listen(source)
+        try:
+            audio = recognizer.listen(source, timeout=2)  # 대기 시간 2초로 설정
+            command = recognizer.recognize_google(audio, language='ko-KR')
+            command = command.replace(" ", "")
+            print(f"인식된 명령: {command}")
+            return command
 
-    try:
-        command = recognizer.recognize_google(audio, language='ko-KR')
-        command = command.replace(" ", "")
-        print(f"인식된 명령: {command}")
-        return command
+        except sr.WaitTimeoutError:
+            print("대기 시간 초과")
+            return None
 
-    except sr.UnknownValueError:
-        print("음성 인식 실패")
-        return None
+        except sr.UnknownValueError:
+            print("음성 인식 실패")
+            return None
 
-    except sr.RequestError:
-        print("음성 서비스 접근 불가")
-        return None
+        except sr.RequestError:
+            print("음성 서비스 접근 불가")
+            return None
 
 def find_closest_command(input_command):
     closest_command = min(commands, key=lambda cmd: Levenshtein.distance(input_command, cmd))
@@ -300,3 +303,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = VoiceControlApp(root)
     root.mainloop()
+
